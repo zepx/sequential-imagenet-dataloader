@@ -1,4 +1,11 @@
 
+AlexNet PyTorch
+-------
+
+PyTorch uses Pillow for preprocessing images and then feeding the transformed data for training. This pipeline was extremely slow, on average taking about 2-3s for 10 iterations. The original repository provided an option to convert images into lmdb, but it's not meant for retraining on PyTorch because no preprocessing was done. Hence, this branch.
+
+### Description
+
 A plug-in ImageNet DataLoader for PyTorch. Uses tensorpack's [sequential
 loading][seq] to load fast even if you're using a HDD. 
 
@@ -50,10 +57,11 @@ the same arguments. For an example, this would be the substitution in the
 [PyTorch ImageNet example][imagenet]:
 
 ```
+    from imagenet_seq.data import Loader
     #train_loader = torch.utils.data.DataLoader(
     #    train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
     #    num_workers=args.workers, pin_memory=True, sampler=train_sampler)
-    train_loader = ImagenetLoader('train', batch_size=args.batch_size, num_workers=args.workers)
+    train_loader = Loader('train', batch_size=args.batch_size, num_workers=args.workers)
 ```
 
 You may need to tune the number of workers to use to get best results.
