@@ -1,1 +1,1 @@
-import data
+import imagenet_seq.data

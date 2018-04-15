@@ -71,8 +71,10 @@ def fbresnet_augmentor(isTrain):
         ]
     else:
         augmentors = [
-            imgaug.ResizeShortestEdge(256, cv2.INTER_CUBIC),
-            imgaug.CenterCrop((224, 224)),
+            imgaug.Resize(256),
+            imgaug.CenterCrop(224),
+            # imgaug.ResizeShortestEdge(256, cv2.INTER_CUBIC),
+            # imgaug.CenterCrop((224, 224)),
         ]
     return augmentors
 #####################################################################################################
@@ -156,19 +158,22 @@ class Loader(object):
             GPU, which is faster).
     """
 
-    def __init__(self, mode, batch_size=256, shuffle=False, num_workers=25, cache=50000,
+    def __init__(self, mode, loc, batch_size=256, shuffle=False, num_workers=25, cache=50000,
             collate_fn=default_collate,  drop_last=False, cuda=False):
         # enumerate standard imagenet augmentors
-        imagenet_augmentors = fbresnet_augmentor(mode == 'train')
+        # imagenet_augmentors = fbresnet_augmentor(mode == 'train')
 
         # load the lmdb if we can find it
-        lmdb_loc = os.path.join(os.environ['IMAGENET'],'ILSVRC-%s.lmdb'%mode)
+        # lmdb_loc = os.path.join(os.environ['IMAGENET'],'ILSVRC-%s.lmdb'%mode)
+        lmdb_loc = '/mnt/data/imagenet/ilsvrc12_{}_lmdb_224_pytorch'.format(mode)
         ds = td.LMDBData(lmdb_loc, shuffle=False)
-        ds = td.LocallyShuffleData(ds, cache)
+        # ds = td.LocallyShuffleData(ds, cache)
         ds = td.PrefetchData(ds, 5000, 1)
         ds = td.LMDBDataPoint(ds)
-        ds = td.MapDataComponent(ds, lambda x: cv2.imdecode(x, cv2.IMREAD_COLOR), 0)
-        ds = td.AugmentImageComponent(ds, imagenet_augmentors)
+        # ds = td.MapDataComponent(ds, lambda x: cv2.imdecode(x, cv2.IMREAD_COLOR), 0)
+        # ds = td.MapDataComponent(ds, lambda x: cv2.cvtColor(x, cv2.COLOR_BGR2RGB), 0)
+        # ds = td.AugmentImageComponent(ds, imagenet_augmentors)
+        ds = td.MapDataComponent(ds, normalize)
         ds = td.PrefetchDataZMQ(ds, num_workers)
         self.ds = td.BatchData(ds, batch_size)
         self.ds.reset_state()
@@ -180,14 +185,12 @@ class Loader(object):
 
     def __iter__(self):
         for x, y in self.ds.get_data():
+            x = torch.FloatTensor(x)
+            y = torch.IntTensor(y)
             if self.cuda:
-                # images come out as uint8, which are faster to copy onto the gpu
-                x = torch.ByteTensor(x).cuda()
-                y = torch.IntTensor(y).cuda()
-                # but once they're on the gpu, we'll need them in 
-                yield uint8_to_float(x), y.long()
-            else:
-                yield uint8_to_float(torch.ByteTensor(x)), torch.IntTensor(y).long()
+                x = x.cuda()
+                y = y.cuda()
+            yield x, y.long()
 
     def __len__(self):
         return self.ds.size()
@@ -196,8 +199,22 @@ def uint8_to_float(x):
     x = x.permute(0,3,1,2) # pytorch is (n,c,w,h)
     return x.float()/128. - 1.
 
+def normalize(x):
+    mean=[0.485, 0.456, 0.406]
+    std=[0.229, 0.224, 0.225]
+    # print(x.shape)
+    x = x * 1.0 / 255
+    x = (x - mean) / std
+    x = x.transpose((2, 0, 1))
+    # print(x.shape)
+    # import sys
+    # sys.exit(0)
+    # x = x.transpose(0, 1).transpose(0, 2).contiguous()
+    # img = torch.from_numpy(x.transpose((2, 0, 1)))
+    return x
+
 if __name__ == '__main__':
     from tqdm import tqdm
-    dl = Loader('train', cuda=True)
+    dl = Loader('val', '', cuda=True)
     for x in tqdm(dl, total=len(dl)):
         pass
