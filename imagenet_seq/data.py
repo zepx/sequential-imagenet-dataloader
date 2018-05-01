@@ -158,14 +158,13 @@ class Loader(object):
             GPU, which is faster).
     """
 
-    def __init__(self, mode, loc, batch_size=256, shuffle=False, num_workers=25, cache=50000,
+    def __init__(self, mode, lmdb_loc, batch_size=256, shuffle=False, num_workers=25, cache=50000,
             collate_fn=default_collate,  drop_last=False, cuda=False):
         # enumerate standard imagenet augmentors
         # imagenet_augmentors = fbresnet_augmentor(mode == 'train')
 
         # load the lmdb if we can find it
         # lmdb_loc = os.path.join(os.environ['IMAGENET'],'ILSVRC-%s.lmdb'%mode)
-        lmdb_loc = '/mnt/data/imagenet/ilsvrc12_{}_lmdb_224_pytorch'.format(mode)
         ds = td.LMDBData(lmdb_loc, shuffle=False)
         # ds = td.LocallyShuffleData(ds, cache)
         ds = td.PrefetchData(ds, 5000, 1)
